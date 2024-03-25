@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Provision a target group for SonarQube ECS Fargate cluster
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of the VPC where the target group will be provisioned
+  SecurityGroupId:
+    Type: String
+    Description: ID of the security group for the target group
+  TargetType:
+    Type: String
+    Default: ip
+    Description: Type of target, should be "ip" or "instance"
+  Port:
+    Type: Number
+    Default: 80
+    Description: Port number on which the targets receive traffic
+
+Resources:
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: SonarQubeTargetGroup
+      VpcId: !Ref VpcId
+      Port: !Ref Port
+      Protocol: HTTP
+      TargetType: !Ref TargetType
+      HealthCheckPath: "/"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: 200
+      Tags:
+        - Key: Name
+          Value: SonarQubeTargetGroup
+    DependsOn: LoadBalancer
+
+Outputs:
+  TargetGroupArn:
+    Description: The ARN of the target group
+    Value: !Ref TargetGroup
