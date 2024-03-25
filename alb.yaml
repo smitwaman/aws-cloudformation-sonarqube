@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Provision ALB with target group for SonarQube ECS Fargate cluster with 3 replicas
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of the VPC where ALB and target group will be provisioned
+  PublicSubnet1Id:
+    Type: String
+    Description: ID of the first public subnet where ALB will be provisioned
+  PublicSubnet2Id:
+    Type: String
+    Description: ID of the second public subnet where ALB will be provisioned
+  PublicSubnet3Id:
+    Type: String
+    Description: ID of the third public subnet where ALB will be provisioned
+  SecurityGroupId:
+    Type: String
+    Description: ID of the security group for ALB
+  Port:
+    Type: Number
+    Default: 80
+    Description: Port number on which the targets receive traffic
+
+Resources:
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: SonarQubeALB
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1Id
+        - !Ref PublicSubnet2Id
+        - !Ref PublicSubnet3Id
+      SecurityGroups:
+        - !Ref SecurityGroupId
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref Port
+      Protocol: HTTP
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: SonarQubeTargetGroup
+      VpcId: !Ref VpcId
+      Port: !Ref Port
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: "/"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: 200
+
+  SonarQubeService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: default
+      LaunchType: FARGATE
+      ServiceName: sonarqube-service
+      DesiredCount: 3
+      TaskDefinition: !Ref SonarQubeTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PublicSubnet1Id
+            - !Ref PublicSubnet2Id
+            - !Ref PublicSubnet3Id
+          SecurityGroups:
+            - !Ref SecurityGroupId
+      LoadBalancers:
+        - ContainerName: sonarqube-container
+          ContainerPort: 9000
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  ALBArn:
+    Description: The ARN of the ALB
+    Value: !GetAtt LoadBalancer.Arn
+  TargetGroupArn:
+    Description: The ARN of the target group
+    Value: !Ref TargetGroup
