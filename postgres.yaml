@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy RDS PostgreSQL instance in a private subnet
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of the VPC where RDS will be deployed
+  PrivateSubnetId:
+    Type: String
+    Description: ID of the private subnet where RDS will be deployed
+  DBName:
+    Type: String
+    Description: Name of the PostgreSQL database
+  DBUsername:
+    Type: String
+    Description: Username for the PostgreSQL database
+  DBPassword:
+    Type: String
+    Description: Password for the PostgreSQL database
+  SecurityGroupId:
+    Type: String
+    Description: ID of the security group for PostgreSQL server
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet group for RDS"
+      SubnetIds:
+        - !Ref PrivateSubnetId
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref DBName
+      Engine: postgres
+      EngineVersion: '12.5'
+      DBInstanceClass: db.t2.micro
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref SecurityGroupId
