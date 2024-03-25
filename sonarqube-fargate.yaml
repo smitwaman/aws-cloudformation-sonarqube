@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy SonarQube server with ECS Fargate service in multiple public subnets
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of the VPC where SonarQube will be deployed
+  PublicSubnet1Id:
+    Type: String
+    Description: ID of the first public subnet where SonarQube will be deployed
+  PublicSubnet2Id:
+    Type: String
+    Description: ID of the second public subnet where SonarQube will be deployed
+  PublicSubnet3Id:
+    Type: String
+    Description: ID of the third public subnet where SonarQube will be deployed
+  SecurityGroupId:
+    Type: String
+    Description: ID of the security group for SonarQube server
+
+Resources:
+  SonarQubeTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: sonarqube-task
+      Cpu: '512'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+      ContainerDefinitions:
+        - Name: sonarqube-container
+          Image: sonarqube:latest
+          PortMappings:
+            - ContainerPort: 9000
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: "/ecs/sonarqube"
+              awslogs-region: "us-west-2"
+              awslogs-stream-prefix: "sonarqube"
+
+  SonarQubeService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: default
+      LaunchType: FARGATE
+      ServiceName: sonarqube-service
+      DesiredCount: 3
+      TaskDefinition: !Ref SonarQubeTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PublicSubnet1Id
+            - !Ref PublicSubnet2Id
+            - !Ref PublicSubnet3Id
+          SecurityGroups:
+            - !Ref SecurityGroupId
